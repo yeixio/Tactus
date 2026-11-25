@@ -8,6 +8,7 @@ import { useApp, useEngine } from '../state/store'
 import { loadSound, userSampleBytes } from '../platform'
 import { soundPath, usedSampleIds } from '../model/soundpack'
 import { encodeWav } from '../engine/render'
+import { usePlaybackSession } from './session'
 
 class AudioBridge {
   ctx: AudioContext | null = null
@@ -23,6 +24,7 @@ class AudioBridge {
 
   /** Start audio (must follow a user gesture). Safe to call repeatedly. */
   ensure(): Promise<void> {
+    usePlaybackSession()
     if (this.ctx) {
       if (this.ctx.state === 'suspended') return this.ctx.resume()
       return Promise.resolve()
