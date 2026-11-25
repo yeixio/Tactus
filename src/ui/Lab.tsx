@@ -9,6 +9,8 @@ import { SmartKnobs, pct } from './Studio'
 import * as A from './actions'
 import { userSampleBytes } from '../platform'
 import { INSTRUMENTS } from '../model/soundpack'
+import { storeTake, takeRoot } from '../audio/recorder'
+import { RecordButton } from './RecordButton'
 import { noteName } from '../model/theory'
 
 export function Lab() {
@@ -32,12 +34,44 @@ export function Lab() {
           <div className="grow" />
           <Seg value={mode} onChange={setMode} options={[{ value: 'simple', label: 'Smart' }, { value: 'advanced', label: 'Full control' }]} />
         </div>
+        {track.synth?.osc1 === 'sampler' && <SamplerCard track={track} />}
         {mode === 'simple' ? <SimpleLab track={track} /> : track.kind === 'synth' ? <SynthPanel track={track} /> : null}
         {track.kind === 'drums' && <PadPanel track={track} />}
         {track.kind === 'synth' && <MiniKeys track={track} />}
       </div>
       <Presets track={track} />
     </div>
+  )
+}
+
+/** The sound a "sampler" synth plays: record it from the mic or load a file. */
+function SamplerCard({ track }: { track: Track }) {
+  const sp = track.synth!
+  const st = useApp.getState()
+  const set = (k: keyof SynthParams) => (v: number | string | boolean) =>
+    st.update((d) => { (A.findTrack(d, track.id)!.synth as unknown as Record<string, unknown>)[k] = v }, { key: `syn:${track.id}:${k}` })
+  const useSound = (id: string, root: number) => st.update((d) => {
+    const s = A.findTrack(d, track.id)!.synth!
+    s.osc1 = 'sampler'; s.sample = id; s.sampleRoot = root
+  })
+  const loadSound = async (file: File) => {
+    let name = file.name.replace(/[^\w.-]+/g, '_')
+    if (userSampleBytes.has(name)) name = `${Date.now().toString(36)}-${name}`
+    userSampleBytes.set(name, await file.arrayBuffer())
+    useSound(`user:${name}`, sp.sampleRoot || 60)
+  }
+  return (
+        <div className="lab-card">
+          <div className="section-title">Your sound</div>
+          <p className="muted small">Record a note, a word or any noise, then play it on the keyboard. It plays at its own pitch on the root note, which is set for you when the sound has a clear pitch.</p>
+          <div className="row wrap">
+            <RecordButton small={false} label="Record" onTake={(take) => { useSound(storeTake(take, track.name), takeRoot(take)); setTimeout(() => audio.preview(track.id, takeRoot(take), 0.9, 2), 150) }} />
+            <label className="ghost filebtn">Load a file…<input type="file" accept="audio/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) loadSound(f) }} /></label>
+            <span className="muted small">{sp.sample ? sp.sample.replace(/^user:/, '') : 'No sound yet'}</span>
+            <Knob size={46} label="Root note" value={sp.sampleRoot ?? 60} min={24} max={108} def={60} color={track.color}
+              onChange={(v) => set('sampleRoot')(Math.round(v))} format={(v) => noteName(Math.round(v))} />
+          </div>
+        </div>
   )
 }
 
@@ -82,7 +116,8 @@ function SynthPanel({ track }: { track: Track }) {
   const waves = (['saw', 'square', 'triangle', 'sine'] as Wave[]).map((w) => ({ value: w as string, label: <WaveIcon w={w} />, title: w }))
   const wave = (k: 'osc1' | 'osc2') => (
     <Seg small value={sp[k]} onChange={(v) => set(k)(v)}
-      options={k === 'osc1' ? [...waves, ...Object.values(INSTRUMENTS).map((i) => ({ value: i.name, label: <span className="small">{i.name}</span>, title: i.description }))] : waves} />
+      options={k === 'osc1' ? [...waves, ...Object.values(INSTRUMENTS).map((i) => ({ value: i.name, label: <span className="small">{i.name}</span>, title: i.description })),
+        { value: 'sampler', label: <span className="small">your sound</span>, title: 'Play your own recording across the keyboard' }] : waves} />
   )
   const sec = (s: number) => (s < 1 ? `${Math.round(s * 1000)}ms` : `${s.toFixed(2)}s`)
   return (
@@ -187,7 +222,7 @@ function PadPanel({ track }: { track: Track }) {
   }
   return (
     <div className="lab-card">
-      <div className="section-title">Pads <span className="muted small">Click to play. Drop an audio file (WAV, MP3, AIFF) onto a pad to sample it.</span></div>
+      <div className="section-title">Pads <span className="muted small">Click to play. Drop an audio file (WAV, MP3, AIFF) onto a pad, or press Rec and make a sound into the mic.</span></div>
       <div className="pads">
         {pads.map((p, i) => (
           <div key={i} className="pad" style={{ ['--tc' as string]: track.color }}
@@ -206,6 +241,11 @@ function PadPanel({ track }: { track: Track }) {
             </div>
             <div className="row small">
               <label className="ghost small filebtn">Load…<input type="file" accept="audio/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) load(i, f) }} /></label>
+              <RecordButton label="Rec" maxSeconds={4} onTake={(take) => {
+                const id = storeTake(take, PAD_NAMES[i])
+                st.update((d) => { A.findTrack(d, track.id)!.pads![i].sample = id })
+                setTimeout(() => audio.preview(track.id, i, 0.9, 1), 150)
+              }} />
               {p.sample.startsWith('user:') && <button className="ghost small" onClick={() => st.update((d) => { A.findTrack(d, track.id)!.pads![i].sample = base[i].sample })}>Factory</button>}
             </div>
           </div>

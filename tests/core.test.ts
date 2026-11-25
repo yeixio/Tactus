@@ -284,7 +284,7 @@ describe('effects', () => {
 describe('presets', () => {
   it('every synth preset makes sound', () => {
     for (const pr of SYNTH_PRESETS) {
-      if (pr.params.osc1 in INSTRUMENTS) continue
+      if (!['saw', 'square', 'triangle', 'sine'].includes(pr.params.osc1)) continue // sampled sources need their recordings
       const e = new Engine(44100)
       e.handle({ type: 'params', tracks: [synthTrack('s', pr.name)], master: MASTER })
       e.handle({ type: 'noteOn', track: 's', pitch: 48, vel: 0.9 })
@@ -306,5 +306,68 @@ describe('language and sampled sources', () => {
     const k2 = r.project!.tracks.find((t) => t.name === 'Keys')!
     expect(k2.synth!.osc1).toBe('piano')
     expect(k2.synth!.chorus).toBeCloseTo(0.6)
+  })
+})
+
+import { cleanTake, detectPitch } from '../src/audio/take'
+
+describe('recording your own sounds', () => {
+  const sr = 44100
+  const takeOf = (hz: number) => {
+    // 0.5 s of room noise, a 0.6 s decaying tone, then 1 s of room noise
+    const x = new Float32Array(Math.round(sr * 2.1))
+    let s = 1
+    const noise = () => { s = (s * 1664525 + 1013904223) >>> 0; return (s / 4294967296 - 0.5) * 0.002 }
+    for (let i = 0; i < x.length; i++) {
+      const t = i / sr - 0.5
+      x[i] = noise() + (t >= 0 && t < 0.6 ? Math.sin(2 * Math.PI * hz * t) * 0.3 * Math.exp(-t * 4) : 0)
+    }
+    return { samples: x, sampleRate: sr }
+  }
+  it('trims the silence around a take and normalizes it', () => {
+    const c = cleanTake(takeOf(330))!
+    expect(c.samples.length / sr).toBeGreaterThan(0.45)
+    expect(c.samples.length / sr).toBeLessThan(0.75)
+    let pk = 0
+    for (const v of c.samples) pk = Math.max(pk, Math.abs(v))
+    expect(pk).toBeGreaterThan(0.85)
+    expect(pk).toBeLessThanOrEqual(0.9)
+    expect(Math.abs(c.samples[0])).toBeLessThan(0.01)
+    expect(Math.abs(c.samples[c.samples.length - 1])).toBeLessThan(0.01)
+  })
+  it('ignores a take with nothing in it', () => {
+    expect(cleanTake({ samples: new Float32Array(sr), sampleRate: sr })).toBeNull()
+  })
+  it('finds the note a sound was sung or played at, and none for noise', () => {
+    expect(detectPitch(cleanTake(takeOf(440))!)!).toBeCloseTo(69, 0)
+    expect(detectPitch(cleanTake(takeOf(196))!)!).toBeCloseTo(55, 0)
+    const n = new Float32Array(sr)
+    let s = 7
+    for (let i = 0; i < n.length; i++) { s = (s * 1664525 + 1013904223) >>> 0; n[i] = (s / 4294967296 - 0.5) * Math.exp(-i / sr * 6) }
+    expect(detectPitch({ samples: n, sampleRate: sr })).toBeNull()
+  })
+  it('plays a recording across the keyboard in the sampler', () => {
+    const e = new Engine(sr)
+    e.handle({ type: 'sample', id: 'user:take.wav', channels: [sine(220, 2)], sampleRate: sr })
+    const t = synthTrack('s', 'sampler')
+    t.synth = { ...t.synth!, sample: 'user:take.wav', sampleRoot: 57 }
+    e.handle({ type: 'params', tracks: [t], master: { ...MASTER, reverbSize: 0 } })
+    e.handle({ type: 'noteOn', track: 's', pitch: 69, vel: 0.9 }) // an octave above the recording
+    const L = new Float32Array(sr), R = new Float32Array(sr)
+    e.process(L, R, sr)
+    const f = pitchOf(L, 4410, 30000, sr)
+    expect(f).toBeGreaterThan(432)
+    expect(f).toBeLessThan(448)
+  })
+  it('keeps a sampler recording through code and saves it with the project', () => {
+    const p = blankProject()
+    const t = p.tracks[1]
+    t.preset = 'sampler'
+    t.synth = { ...synthPreset('sampler'), sample: 'user:my voice.wav', sampleRoot: 62 }
+    const r = buildProject(printProject(p), p)
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+    expect(r.project!.tracks[1].synth!.sample).toBe('user:my voice.wav')
+    expect(r.project!.tracks[1].synth!.sampleRoot).toBe(62)
+    expect(usedSampleIds(p)).toContain('user:my voice.wav')
   })
 })

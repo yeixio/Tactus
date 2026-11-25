@@ -11,6 +11,7 @@ All notable changes to Tactus are listed here. The format follows [Keep a Change
 - Branches are deleted automatically when their pull request closes.
 - Recorded sounds: five drum kits (`studio`, `house`, `boom-bap`, `electro`, `trap`) and a sampled grand piano with `grand-piano`, `soft-piano` and `lofi-piano` presets. All public domain or CC0.
 - A stereo chorus on the synth (the Chorus knob), used by the keys and pad presets.
+- Record your own sounds with the microphone: press **Rec** on a drum pad, or pick the `sampler` preset (or set oscillator 1 to *your sound*) and record a note to play across the keyboard. Takes are trimmed, normalized and pitch-detected automatically, and saved with the project (#50).
 
 ### Changed
 

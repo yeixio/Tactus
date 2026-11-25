@@ -69,7 +69,10 @@ function fromDesktop(r: { path: string; json: string; samples: { name: string; d
 
 function usedSamples(p: Project) {
   const names = new Set<string>()
-  for (const t of p.tracks) for (const pad of t.pads ?? []) if (pad.sample.startsWith('user:')) names.add(pad.sample.slice(5))
+  for (const t of p.tracks) {
+    for (const pad of t.pads ?? []) if (pad.sample.startsWith('user:')) names.add(pad.sample.slice(5))
+    if (t.synth?.sample?.startsWith('user:')) names.add(t.synth.sample.slice(5))
+  }
   return [...names].flatMap((n) => (userSampleBytes.has(n) ? [{ name: n, data: userSampleBytes.get(n)! }] : []))
 }
 

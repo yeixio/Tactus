@@ -76,7 +76,7 @@ export function printTrack(t: Track): string {
     for (const k of Object.keys(base) as (keyof SynthParams)[]) {
       const v = t.synth[k]
       const b = base[k]
-      if (typeof v === 'number' ? Math.abs(v - (b as number)) > 1e-4 : v !== b) L.push(`  ${k} ${typeof v === 'number' ? fmt(v) : typeof v === 'boolean' ? (v ? 'on' : 'off') : v}`)
+      if (typeof v === 'number' ? Math.abs(v - (b as number)) > 1e-4 : v !== b) L.push(`  ${k} ${typeof v === 'number' ? fmt(v) : typeof v === 'boolean' ? (v ? 'on' : 'off') : k === 'sample' ? q(v) : v}`)
     }
   }
   if (t.kind === 'drums' && t.pads) {

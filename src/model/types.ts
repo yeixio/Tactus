@@ -6,8 +6,8 @@ export const STEPS_PER_BEAT = 4
 export const STEPS_PER_BAR = 16
 
 export type Wave = 'saw' | 'square' | 'triangle' | 'sine'
-/** What oscillator 1 plays: a waveform, or a sampled instrument from the factory sound pack. */
-export type Source = Wave | 'piano'
+/** What oscillator 1 plays: a waveform, a sampled instrument from the factory sound pack, or "sampler" (the track's own recording, see `sample`). */
+export type Source = Wave | 'piano' | 'sampler'
 
 export const SCALES = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -77,6 +77,8 @@ export interface SynthParams {
   drive: number // 0..1
   gain: number // 0..1.5
   chorus: number // 0..1, stereo chorus after the voices
+  sample: string // the recording osc1 plays when it is "sampler": "user:<file>", or empty
+  sampleRoot: number // the MIDI note the recording was made at (it plays at its own pitch there)
 }
 
 export interface DrumPad {

@@ -483,8 +483,15 @@ export class Engine {
   }
 
   /** Point a voice at the recording nearest to a pitch. Returns false when the instrument isn't loaded. */
-  pickZone(v: SynthVoice, source: string, pitch: number): boolean {
-    const inst = this.instruments.get(source)
+  pickZone(v: SynthVoice, sp: SynthParams, pitch: number): boolean {
+    if (sp.osc1 === 'sampler') {
+      const d = sp.sample ? this.samples.get(sp.sample) : undefined
+      v.sdata = d ?? null
+      v.sroot = sp.sampleRoot ?? 60
+      v.spos = 0
+      return !!d
+    }
+    const inst = this.instruments.get(sp.osc1)
     if (!inst || !inst.roots.length) { v.sdata = null; return false }
     let best = 0
     for (let k = 1; k < inst.roots.length; k++) if (Math.abs(inst.roots[k] - pitch) < Math.abs(inst.roots[best] - pitch)) best = k
@@ -660,7 +667,7 @@ export class Engine {
       v.age = 0
       v.amp.set(sp.ampA, sp.ampD, sp.ampS, sp.ampR, this.sr)
       v.flt.set(sp.fltA, sp.fltD, sp.fltS, sp.fltR, this.sr)
-      if (!WAVES.has(sp.osc1) && (!legato || !v.sdata)) this.pickZone(v, sp.osc1, pitch)
+      if (!WAVES.has(sp.osc1) && (!legato || !v.sdata)) this.pickZone(v, sp, pitch)
       v.amp.gate(true, !legato)
       v.flt.gate(true, !legato)
       v.active = true
@@ -682,7 +689,7 @@ export class Engine {
     for (let u = 0; u < 8; u++) v.phases[u] = (ph0 + u * 0.618) % 1
     v.drPh = this.vrng.next()
     v.drRate = 0.15 + this.vrng.next() * 0.35
-    if (!WAVES.has(sp.osc1)) this.pickZone(v, sp.osc1, pitch)
+    if (!WAVES.has(sp.osc1)) this.pickZone(v, sp, pitch)
     v.ph2 = 0
     v.phSub = 0
     v.fL.reset(); v.fR.reset()
