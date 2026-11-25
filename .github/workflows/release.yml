@@ -1,0 +1,127 @@
+name: Release
+
+# Press Run workflow under Actions → Release to release main. It picks the
+# next version (the version in package.json for the first release, then a
+# patch bump by default), checks that main passed Build and has its notes in
+# docs/release-notes/<tag>.md, tags it, builds the installers and publishes
+# the GitHub Release. Pushing a tag such as v0.2.0 by hand works too.
+#
+# A version with a suffix (v0.2.0-beta.1) is a pre-release and needs no
+# notes file.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the last version goes up
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: Or an exact version, such as v0.3.0-beta.1 (leave empty to bump)
+        type: string
+        required: false
+      force:
+        description: Release even if Build didn't pass on this commit
+        type: boolean
+        default: false
+
+permissions:
+  # actions: read lets a pressed release check Build on the commit.
+  actions: read
+  contents: write
+
+# One release at a time, so two presses can't pick the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # The tag this run releases: the pushed tag, or a new one on main.
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.version }}
+          FORCE: ${{ inputs.force && '1' || '' }}
+          NOTES_DIR: docs/release-notes
+          ACTOR: ${{ github.actor }}
+          ACTOR_ID: ${{ github.actor_id }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::Release from main, not $GITHUB_REF_NAME."
+            exit 1
+          fi
+          # The tag is made in the name of whoever pressed the button.
+          git config user.name "$ACTOR"
+          git config user.email "${ACTOR_ID}+${ACTOR}@users.noreply.github.com"
+          scripts/cut-release.sh
+
+  package:
+    needs: tag
+    env:
+      TAG: ${{ needs.tag.outputs.tag }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.tag.outputs.tag }}
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      # The installers carry the released version, whatever package.json says.
+      - name: Set the version from the tag
+        shell: bash
+        run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx electron-builder --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-${{ matrix.os }}
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+          if-no-files-found: error
+
+  release:
+    needs: [tag, package]
+    env:
+      TAG: ${{ needs.tag.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.tag.outputs.tag }}
+      - uses: actions/download-artifact@v8
+        with: { path: dist-artifacts, merge-multiple: true }
+      - name: Publish the GitHub Release
+        run: |
+          set -euo pipefail
+          args=(--title "Tactus $TAG" --generate-notes)
+          if [ -f "docs/release-notes/$TAG.md" ]; then args+=(--notes-file "docs/release-notes/$TAG.md"); fi
+          if [[ "$TAG" == *-* ]]; then args+=(--prerelease); fi
+          # The release may already exist when the tag was created from the GitHub Releases page.
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --verify-tag "${args[@]}"
+          gh release upload "$TAG" dist-artifacts/* --clobber
