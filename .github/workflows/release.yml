@@ -4,7 +4,8 @@ name: Release
 # next version (the version in package.json for the first release, then a
 # patch bump by default), checks that main passed Build and has its notes in
 # docs/release-notes/<tag>.md, tags it, builds the installers and publishes
-# the GitHub Release. Pushing a tag such as v0.2.0 by hand works too.
+# the GitHub Release. Pushing a tag such as v0.2.0 by hand works too, and
+# a release drafted on the Releases page gets its installers added.
 #
 # A version with a suffix (v0.2.0-beta.1) is a pre-release and needs no
 # notes file.
