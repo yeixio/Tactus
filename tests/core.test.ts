@@ -181,3 +181,130 @@ describe('project files', () => {
     expect(() => migrateProject({ schema: 99, tracks: [] })).toThrow(/newer version/)
   })
 })
+
+import { existsSync } from 'node:fs'
+import { DRUM_KITS, SYNTH_PRESETS, drumKit, synthPreset } from '../src/model/presets'
+import { INSTRUMENTS, SAMPLED_KITS, instrumentSampleIds, soundPath, usedSampleIds } from '../src/model/soundpack'
+import type { EngineTrackParams } from '../src/engine/protocol'
+
+const synthTrack = (id: string, preset: string, over: Partial<EngineTrackParams> = {}): EngineTrackParams => ({
+  id, kind: 'synth', synth: synthPreset(preset), volume: 1, pan: 0, sendDelay: 0, sendReverb: 0, drive: 0, tone: 0, duck: 0, humanize: 0, chaos: 0, density: 0, ...over,
+})
+const MASTER = { volume: 0.85, delayTime: 3, delayFeedback: 0.3, reverbSize: 0.5 }
+const sine = (hz: number, secs: number, sr = 44100) => { const a = new Float32Array(Math.round(secs * sr)); for (let i = 0; i < a.length; i++) a[i] = Math.sin((2 * Math.PI * hz * i) / sr) * 0.8; return a }
+/** Dominant frequency by counting upward zero crossings. */
+const pitchOf = (a: Float32Array, from: number, to: number, sr: number) => { let n = 0; for (let i = from + 1; i < to; i++) if (a[i - 1] < 0 && a[i] >= 0) n++; return (n * sr) / (to - from) }
+
+describe('sound pack', () => {
+  it('has a file for every pack sample a kit or instrument uses', () => {
+    const ids = [...SAMPLED_KITS.flatMap((k) => Object.values(k.pads)), ...Object.keys(INSTRUMENTS).flatMap(instrumentSampleIds)]
+    for (const id of ids) {
+      if (id.startsWith('factory:')) continue
+      expect(existsSync(`public/sounds/${soundPath(id)}`), id).toBe(true)
+    }
+    expect(existsSync('public/sounds/CREDITS.md')).toBe(true)
+  })
+  it('lists every recorded kit as a drum kit, and its pads point at the pack', () => {
+    for (const k of SAMPLED_KITS) {
+      expect(DRUM_KITS.some((d) => d.name === k.name)).toBe(true)
+      expect(drumKit(k.name).filter((p) => p.sample.startsWith('sound:')).length).toBeGreaterThanOrEqual(7)
+    }
+  })
+  it('asks the bridge for every piano recording when a track plays the piano', () => {
+    const p = blankProject()
+    p.tracks[1].synth = synthPreset('grand-piano')
+    expect(usedSampleIds(p)).toEqual(expect.arrayContaining(instrumentSampleIds('piano')))
+  })
+  it('keeps old projects working: presets without chorus get it from migration', () => {
+    const p = projectFromTemplate(TEMPLATES[0], { seed: 1 })
+    for (const t of p.tracks) if (t.synth) delete (t.synth as unknown as Record<string, unknown>).chorus
+    const q = migrateProject(JSON.parse(JSON.stringify(p)))
+    for (const t of q.tracks) if (t.synth) expect(typeof t.synth.chorus).toBe('number')
+  })
+})
+
+describe('sampled instruments', () => {
+  it('plays the nearest recording, repitched to the note', () => {
+    const sr = 44100
+    const e = new Engine(sr)
+    // recordings of A3 (220 Hz) and A4 (440 Hz)
+    e.handle({ type: 'sample', id: 'sound:piano/57', channels: [sine(220, 2)], sampleRate: sr })
+    e.handle({ type: 'sample', id: 'sound:piano/69', channels: [sine(440, 2)], sampleRate: sr })
+    const t = synthTrack('k', 'grand-piano')
+    t.synth = { ...t.synth!, chorus: 0, cutoff: 18000 }
+    e.handle({ type: 'params', tracks: [t], master: { ...MASTER, reverbSize: 0 } })
+    e.handle({ type: 'noteOn', track: 'k', pitch: 72, vel: 0.9 }) // C5, nearest recording A4, up 3 semitones
+    const L = new Float32Array(sr), R = new Float32Array(sr)
+    e.process(L, R, sr)
+    const f = pitchOf(L, 4410, 44100, sr)
+    expect(f).toBeGreaterThan(515)
+    expect(f).toBeLessThan(532) // C5 = 523 Hz
+  })
+  it('stays silent, without errors, until the recordings arrive', () => {
+    const e = new Engine(44100)
+    e.handle({ type: 'params', tracks: [synthTrack('k', 'grand-piano')], master: MASTER })
+    e.handle({ type: 'noteOn', track: 'k', pitch: 60, vel: 0.9 })
+    const L = new Float32Array(4096), R = new Float32Array(4096)
+    e.process(L, R, 4096)
+    expect(rms(L)).toBe(0)
+  })
+})
+
+describe('effects', () => {
+  it('chorus widens a mono synth into stereo', () => {
+    const run = (chorus: number) => {
+      const e = new Engine(44100)
+      const t = synthTrack('s', 'warm-pad')
+      t.synth = { ...t.synth!, chorus, unison: 1, ampA: 0.01, spread: 0 }
+      e.handle({ type: 'params', tracks: [t], master: { ...MASTER, reverbSize: 0 } })
+      e.handle({ type: 'noteOn', track: 's', pitch: 60, vel: 0.9 })
+      const L = new Float32Array(44100), R = new Float32Array(44100)
+      e.process(L, R, 44100)
+      let d = 0
+      for (let i = 0; i < L.length; i++) d += Math.abs(L[i] - R[i])
+      return d / L.length
+    }
+    expect(run(0)).toBeLessThan(1e-6)
+    expect(run(0.6)).toBeGreaterThan(0.005)
+  })
+  it('reverb tail rings out and then decays to silence', () => {
+    const e = new Engine(44100)
+    const t = synthTrack('s', 'pluck', { sendReverb: 1 })
+    e.handle({ type: 'params', tracks: [t], master: { ...MASTER, reverbSize: 0.6, delayFeedback: 0 } })
+    e.handle({ type: 'preview', track: 's', pitch: 60, vel: 1, len: 1 })
+    const n = 44100 * 8
+    const L = new Float32Array(n), R = new Float32Array(n)
+    e.process(L, R, n)
+    expect(rms(L, 44100, 88200)).toBeGreaterThan(1e-3) // still ringing after a second
+    expect(rms(L, n - 44100, n)).toBeLessThan(1e-4)
+    for (let i = 0; i < n; i++) expect(Number.isFinite(L[i])).toBe(true)
+  })
+})
+
+describe('presets', () => {
+  it('every synth preset makes sound', () => {
+    for (const pr of SYNTH_PRESETS) {
+      if (pr.params.osc1 in INSTRUMENTS) continue
+      const e = new Engine(44100)
+      e.handle({ type: 'params', tracks: [synthTrack('s', pr.name)], master: MASTER })
+      e.handle({ type: 'noteOn', track: 's', pitch: 48, vel: 0.9 })
+      const L = new Float32Array(44100 * 2), R = new Float32Array(44100 * 2)
+      e.process(L, R, L.length)
+      expect(rms(L), pr.name).toBeGreaterThan(1e-3)
+    }
+  })
+})
+
+describe('language and sampled sources', () => {
+  it('round-trips a synth track switched to the piano through code', () => {
+    const p = projectFromTemplate(TEMPLATES[0], { seed: 2 })
+    const keys = p.tracks.find((t) => t.name === 'Keys')!
+    keys.synth!.osc1 = 'piano'
+    keys.synth!.chorus = 0.6
+    const r = buildProject(printProject(p), p)
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+    const k2 = r.project!.tracks.find((t) => t.name === 'Keys')!
+    expect(k2.synth!.osc1).toBe('piano')
+    expect(k2.synth!.chorus).toBeCloseTo(0.6)
+  })
+})

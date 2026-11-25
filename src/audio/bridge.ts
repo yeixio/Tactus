@@ -5,7 +5,8 @@ import { synthesizeFactorySample } from '../engine/core/samples'
 import { compileSong, resolveAll } from '../model/sound'
 import type { Project } from '../model/types'
 import { useApp, useEngine } from '../state/store'
-import { userSampleBytes } from '../platform'
+import { loadSound, userSampleBytes } from '../platform'
+import { soundPath, usedSampleIds } from '../model/soundpack'
 import { encodeWav } from '../engine/render'
 
 class AudioBridge {
@@ -73,23 +74,42 @@ class AudioBridge {
     return d
   }
 
+  /** Decode a factory sound-pack file ("sound:<path>"). */
+  async packSample(id: string) {
+    if (this.decoded.has(id)) return this.decoded.get(id)!
+    const rel = soundPath(id)
+    if (!rel) return null
+    const bytes = await loadSound(rel)
+    const ctx = this.ctx ?? new OfflineAudioContext(2, 1, 44100)
+    const buf = await ctx.decodeAudioData(bytes)
+    const d = { channels: Array.from({ length: Math.min(2, buf.numberOfChannels) }, (_, i) => buf.getChannelData(i).slice()), sampleRate: buf.sampleRate }
+    this.decoded.set(id, d)
+    return d
+  }
+
+  /** Audio for any sample id the engine can play: synthesized, from the sound pack, or the user's. */
+  private async sampleData(id: string, rate: number) {
+    if (id.startsWith('factory:')) return synthesizeFactorySample(id, rate)
+    try {
+      if (id.startsWith('sound:')) return await this.packSample(id)
+      if (id.startsWith('user:')) return await this.userSample(id.slice(5))
+    } catch (e) {
+      console.warn('Could not load sample', id, e)
+    }
+    return null
+  }
+
   /** Send any samples the project uses that the engine has not received yet. */
   private async syncSamples(p: Project) {
     if (!this.ctx) return
-    for (const t of p.tracks) {
-      for (const pad of t.pads ?? []) {
-        if (this.sent.has(pad.sample)) continue
-        this.sent.add(pad.sample)
-        if (pad.sample.startsWith('factory:')) {
-          const s = synthesizeFactorySample(pad.sample, this.ctx.sampleRate)
-          if (s) this.send({ type: 'sample', id: pad.sample, channels: s.channels, sampleRate: s.sampleRate }, s.channels.map((c) => c.buffer))
-        } else if (pad.sample.startsWith('user:')) {
-          const d = await this.userSample(pad.sample.slice(5))
-          if (d) this.send({ type: 'sample', id: pad.sample, channels: d.channels.map((c) => c.slice()), sampleRate: d.sampleRate })
-          else this.sent.delete(pad.sample)
-        }
-      }
-    }
+    const rate = this.ctx.sampleRate
+    await Promise.all(usedSampleIds(p).filter((id) => !this.sent.has(id)).map(async (id) => {
+      this.sent.add(id)
+      const d = await this.sampleData(id, rate)
+      if (!d) { this.sent.delete(id); return }
+      const channels = id.startsWith('factory:') ? d.channels : d.channels.map((c) => c.slice())
+      this.send({ type: 'sample', id, channels, sampleRate: d.sampleRate }, channels.map((c) => c.buffer))
+    }))
   }
 
   syncAll(p: Project) {
@@ -161,10 +181,9 @@ class AudioBridge {
   /** Samples to hand to the export worker. */
   async samplesFor(p: Project, rate: number) {
     const out: { id: string; channels: Float32Array[]; sampleRate: number }[] = []
-    for (const t of p.tracks) for (const pad of t.pads ?? []) {
-      if (out.some((o) => o.id === pad.sample)) continue
-      if (pad.sample.startsWith('factory:')) { const s = synthesizeFactorySample(pad.sample, rate); if (s) out.push({ id: pad.sample, ...s }) }
-      else { const d = await this.userSample(pad.sample.slice(5)); if (d) out.push({ id: pad.sample, channels: d.channels.map((c) => c.slice()), sampleRate: d.sampleRate }) }
+    for (const id of usedSampleIds(p)) {
+      const d = await this.sampleData(id, rate)
+      if (d) out.push({ id, channels: d.channels.map((c) => c.slice()), sampleRate: d.sampleRate })
     }
     return out
   }

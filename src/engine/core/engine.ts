@@ -9,6 +9,9 @@ import { synthesizeFactorySample, type SampleData } from './samples'
 const TAU = Math.PI * 2
 const MAX_SYNTH_VOICES = 16
 const MAX_DRUM_VOICES = 24
+const WAVES = new Set(['saw', 'square', 'triangle', 'sine'])
+/** Slow per-voice pitch drift, in cents, so held notes and chords sound less static. */
+const DRIFT_CENTS = 2.5
 
 // ---------------------------------------------------------------------------------------------
 // DSP building blocks
@@ -112,6 +115,14 @@ class SynthVoice {
   flt = new Env()
   ctr = 0
   freq = 440
+  // analog drift
+  drPh = 0
+  drRate = 0.3
+  // sampled source (osc1 = an instrument from the sound pack)
+  sdata: SampleData | null = null
+  spos = 0
+  srate = 1
+  sroot = 60
 }
 
 class DrumVoice {
@@ -168,6 +179,7 @@ class TrackState {
   peak = 0
   rng: Rng
   monoVoice: SynthVoice | null = null
+  chorus: Chorus | null = null
   held = new Map<number, SynthVoice>()
   constructor(p: EngineTrackParams, max: number, seed: number) {
     this.id = p.id
@@ -183,52 +195,110 @@ class TrackState {
 // ---------------------------------------------------------------------------------------------
 // Effects
 
-class Comb {
-  buf: Float32Array; i = 0; store = 0
-  constructor(n: number) { this.buf = new Float32Array(n) }
-  p(x: number, fb: number, damp: number) {
-    const y = this.buf[this.i]
-    this.store = y * (1 - damp) + this.store * damp
-    this.buf[this.i] = x + this.store * fb
-    if (++this.i >= this.buf.length) this.i = 0
-    return y
-  }
-}
-class Allpass {
-  buf: Float32Array; i = 0
-  constructor(n: number) { this.buf = new Float32Array(n) }
-  p(x: number) {
-    const b = this.buf[this.i]
-    this.buf[this.i] = x + b * 0.5
-    if (++this.i >= this.buf.length) this.i = 0
-    return b - x
+/** A Juno-style stereo chorus: one modulated delay per side, with opposite LFO phases. */
+class Chorus {
+  l: Float32Array; r: Float32Array; w = 0; ph = 0; sr: number
+  constructor(sr: number) { this.sr = sr; this.l = new Float32Array(Math.ceil(sr * 0.04)); this.r = new Float32Array(Math.ceil(sr * 0.04)) }
+  process(L: Float32Array, R: Float32Array, n: number, amount: number) {
+    const N = this.l.length
+    const base = 0.0075 * this.sr, depth = 0.0032 * this.sr
+    const inc = 0.55 / this.sr
+    const wet = amount * 0.85, norm = 1 / (1 + amount * 0.35)
+    for (let i = 0; i < n; i++) {
+      this.ph += inc; if (this.ph >= 1) this.ph -= 1
+      const tri = this.ph < 0.5 ? this.ph * 4 - 1 : 3 - this.ph * 4
+      const xl = L[i], xr = R[i]
+      this.l[this.w] = xl; this.r[this.w] = xr
+      let a = 0, b = 0
+      for (let side = 0; side < 2; side++) {
+        const d = base + depth * (side ? -tri : tri)
+        let rp = this.w - d
+        if (rp < 0) rp += N
+        const i0 = rp | 0, fr = rp - i0, i1 = i0 + 1 >= N ? 0 : i0 + 1
+        const buf = side ? this.r : this.l
+        const y = buf[i0] + (buf[i1] - buf[i0]) * fr
+        if (side) b = y; else a = y
+      }
+      if (++this.w >= N) this.w = 0
+      // cross the wet sides for width
+      L[i] = (xl + b * wet) * norm
+      R[i] = (xr + a * wet) * norm
+    }
   }
 }
 
+/**
+ * Feedback-delay-network reverb: pre-delay, input diffusion, eight modulated delay lines
+ * mixed by a Householder matrix, with damping in the loop. Smoother and less metallic
+ * than a comb-filter (Freeverb) design.
+ */
 class Reverb {
-  cl: Comb[]; cr: Comb[]; al: Allpass[]; ar: Allpass[]
+  sr: number
+  pre: Float32Array; pw = 0
+  dif: Float32Array[]; difI: number[]
+  lines: Float32Array[]; li: number[]; len: number[]
+  lp = new Float64Array(8)
+  y = new Float64Array(8)
+  mph = new Float64Array(8)
   hp = 0
   constructor(sr: number) {
+    this.sr = sr
     const s = sr / 44100
-    const combs = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617]
-    const aps = [556, 441, 341, 225]
-    this.cl = combs.map((n) => new Comb(Math.round(n * s)))
-    this.cr = combs.map((n) => new Comb(Math.round((n + 23) * s)))
-    this.al = aps.map((n) => new Allpass(Math.round(n * s)))
-    this.ar = aps.map((n) => new Allpass(Math.round((n + 23) * s)))
+    this.pre = new Float32Array(Math.ceil(sr * 0.06))
+    this.dif = [142, 107, 379, 277].map((n) => new Float32Array(Math.round(n * s)))
+    this.difI = [0, 0, 0, 0]
+    this.len = [1433, 1601, 1867, 2053, 2251, 2399, 2617, 2789].map((n) => Math.round(n * s))
+    this.lines = this.len.map((n) => new Float32Array(n + 32))
+    this.li = this.len.map(() => 0)
+    for (let i = 0; i < 8; i++) this.mph[i] = i / 8
   }
   process(inL: Float32Array, inR: Float32Array, outL: Float32Array, outR: Float32Array, n: number, size: number) {
-    const fb = 0.7 + size * 0.28
-    const damp = 0.25 + (1 - size) * 0.2
+    const sr = this.sr
+    const t60 = 0.45 + size * 2.2 + size * size * size * 2.5
+    const g = this.len.map((l) => Math.pow(10, (-3 * l) / (t60 * sr)))
+    const damp = 1 - Math.exp((-2 * Math.PI * (9500 - size * 4500)) / sr)
+    const preLen = Math.max(1, Math.round((0.004 + size * 0.022) * sr))
+    const P = this.pre.length
+    const modInc = 0.6 / sr, modDepth = 6 * (sr / 44100)
+    const lines = this.lines, len = this.len, y = this.y, lp = this.lp, mph = this.mph, li = this.li
     for (let i = 0; i < n; i++) {
-      let x = (inL[i] + inR[i]) * 0.015
-      this.hp += (x - this.hp) * 0.03
+      let x = (inL[i] + inR[i]) * 0.5
+      this.hp += (x - this.hp) * 0.02
       x -= this.hp
-      let l = 0, r = 0
-      for (let c = 0; c < 8; c++) { l += this.cl[c].p(x, fb, damp); r += this.cr[c].p(x, fb, damp) }
-      for (let a = 0; a < 4; a++) { l = this.al[a].p(l); r = this.ar[a].p(r) }
-      outL[i] += l * 1.6
-      outR[i] += r * 1.6
+      this.pre[this.pw] = x
+      let rp = this.pw - preLen
+      if (rp < 0) rp += P
+      x = this.pre[rp]
+      if (++this.pw >= P) this.pw = 0
+      for (let d = 0; d < 4; d++) {
+        const buf = this.dif[d], k = this.difI[d]
+        const b = buf[k]
+        const v = x + b * 0.6
+        buf[k] = v
+        x = b - v * 0.6
+        this.difI[d] = k + 1 >= buf.length ? 0 : k + 1
+      }
+      let sum = 0
+      for (let j = 0; j < 8; j++) {
+        const buf = lines[j], N = buf.length
+        mph[j] += modInc * (1 + j * 0.13); if (mph[j] >= 1) mph[j] -= 1
+        const tri = mph[j] < 0.5 ? mph[j] * 4 - 1 : 3 - mph[j] * 4
+        let r = li[j] - len[j] + modDepth * tri
+        if (r < 0) r += N
+        const i0 = r | 0, fr = r - i0, i1 = i0 + 1 >= N ? 0 : i0 + 1
+        const v = buf[i0] + (buf[i1] - buf[i0]) * fr
+        lp[j] += (v - lp[j]) * damp
+        y[j] = lp[j]
+        sum += y[j]
+      }
+      const h = sum * 0.25
+      for (let j = 0; j < 8; j++) {
+        const buf = lines[j]
+        buf[li[j]] = (j & 1 ? -x : x) + (y[j] - h) * g[j]
+        if (++li[j] >= buf.length) li[j] = 0
+      }
+      outL[i] += (y[0] + y[2] - y[4] - y[6]) * 0.42
+      outR[i] += (y[1] + y[3] - y[5] - y[7]) * 0.42
     }
   }
 }
@@ -269,6 +339,9 @@ export class Engine {
   pendingSong: { song: EngineSong; at: Quantize } | null = null
   master: EngineMaster = { volume: 0.85, delayTime: 3, delayFeedback: 0.35, reverbSize: 0.6 }
   samples = new Map<string, SampleData>()
+  /** Sampled instruments by name: recorded root notes (sorted) and their audio. */
+  instruments = new Map<string, { roots: number[]; data: SampleData[] }>()
+  vrng = new Rng(0x7ac75)
   playing = false
   mode: 'live' | 'song' = 'live'
   stepPos = 0 // musical position in 16ths (song mode: from song start)
@@ -318,7 +391,7 @@ export class Engine {
         else this.pendingSong = { song: m.song, at: m.at }
         break
       case 'params': this.applyParams(m.tracks, m.master); break
-      case 'sample': this.samples.set(m.id, { channels: m.channels, sampleRate: m.sampleRate }); break
+      case 'sample': this.addSample(m.id, { channels: m.channels, sampleRate: m.sampleRate }); break
       case 'play': this.play(m.mode, m.fromBar ?? 0); break
       case 'stop': this.stop(); break
       case 'launchScene': {
@@ -383,6 +456,7 @@ export class Engine {
       t.params = p
       t.synth = p.synth ?? null
       t.pads = p.pads ?? null
+      if ((t.synth?.chorus ?? 0) > 0 && !t.chorus) t.chorus = new Chorus(this.sr)
       if (t.pads) for (const pad of t.pads) this.ensureSample(pad.sample)
       next.push(t)
       idx.set(p.id, i)
@@ -391,6 +465,33 @@ export class Engine {
     this.trackIndex = idx
     // clips may have arrived before the track existed
     this.applySong(this.song)
+  }
+
+  addSample(id: string, d: SampleData) {
+    this.samples.set(id, d)
+    const m = /^sound:([\w-]+)\/(\d+)$/.exec(id)
+    if (!m) return
+    let inst = this.instruments.get(m[1])
+    if (!inst) { inst = { roots: [], data: [] }; this.instruments.set(m[1], inst) }
+    const root = Number(m[2])
+    const k = inst.roots.indexOf(root)
+    if (k >= 0) { inst.data[k] = d; return }
+    let at = 0
+    while (at < inst.roots.length && inst.roots[at] < root) at++
+    inst.roots.splice(at, 0, root)
+    inst.data.splice(at, 0, d)
+  }
+
+  /** Point a voice at the recording nearest to a pitch. Returns false when the instrument isn't loaded. */
+  pickZone(v: SynthVoice, source: string, pitch: number): boolean {
+    const inst = this.instruments.get(source)
+    if (!inst || !inst.roots.length) { v.sdata = null; return false }
+    let best = 0
+    for (let k = 1; k < inst.roots.length; k++) if (Math.abs(inst.roots[k] - pitch) < Math.abs(inst.roots[best] - pitch)) best = k
+    v.sdata = inst.data[best]
+    v.sroot = inst.roots[best]
+    v.spos = 0
+    return true
   }
 
   ensureSample(id: string) {
@@ -530,8 +631,10 @@ export class Engine {
       v.pad = pitch
       v.data = data
       v.pos = 0
-      v.rate = Math.pow(2, pad.tune / 12) * (data.sampleRate / this.sr)
-      const g = pad.gain * (0.25 + 0.75 * vel)
+      // tiny per-hit variation, like a real player never hitting twice the same
+      const jitter = (this.vrng.next() - 0.5)
+      v.rate = Math.pow(2, (pad.tune + jitter * 0.08) / 12) * (data.sampleRate / this.sr)
+      const g = pad.gain * (0.25 + 0.75 * vel) * (1 + jitter * 0.08)
       const pan = Math.max(-1, Math.min(1, pad.pan))
       v.panL = g * Math.cos(((pan + 1) * Math.PI) / 4)
       v.panR = g * Math.sin(((pan + 1) * Math.PI) / 4)
@@ -557,6 +660,7 @@ export class Engine {
       v.age = 0
       v.amp.set(sp.ampA, sp.ampD, sp.ampS, sp.ampR, this.sr)
       v.flt.set(sp.fltA, sp.fltD, sp.fltS, sp.fltR, this.sr)
+      if (!WAVES.has(sp.osc1) && (!legato || !v.sdata)) this.pickZone(v, sp.osc1, pitch)
       v.amp.gate(true, !legato)
       v.flt.gate(true, !legato)
       v.active = true
@@ -573,7 +677,12 @@ export class Engine {
     v.delay = delay
     v.age = 0
     v.ctr = 0
-    for (let u = 0; u < 8; u++) v.phases[u] = (u * 0.618) % 1
+    // free-running oscillators: each note starts at a different phase, like an analog synth
+    const ph0 = this.vrng.next()
+    for (let u = 0; u < 8; u++) v.phases[u] = (ph0 + u * 0.618) % 1
+    v.drPh = this.vrng.next()
+    v.drRate = 0.15 + this.vrng.next() * 0.35
+    if (!WAVES.has(sp.osc1)) this.pickZone(v, sp.osc1, pitch)
     v.ph2 = 0
     v.phSub = 0
     v.fL.reset(); v.fR.reset()
@@ -610,6 +719,10 @@ export class Engine {
     const driveAmt = 1 + sp.drive * 4
     const driveNorm = 1 / Math.tanh(driveAmt)
     const uniGain = 1 / Math.sqrt(uni)
+    const sampled = !WAVES.has(sp.osc1)
+    const stereo = uni > 1 || sampled
+    const outGain = sampled ? 0.25 : 0.32
+    const driftStep = (16 / sr)
     const detune = this.detune
     for (let u = 0; u < uni; u++) {
       const spread = uni > 1 ? (u / (uni - 1) - 0.5) * 2 : 0
@@ -626,11 +739,14 @@ export class Engine {
         const a = v.amp.next()
         if (v.amp.stage === 0) { v.active = false; break }
         if ((v.ctr++ & 15) === 0) {
-          v.freq = 440 * Math.pow(2, (v.curNote - 69) / 12) * lfoPitch
+          v.drPh += v.drRate * driftStep; if (v.drPh >= 1) v.drPh -= 1
+          const drift = sampled ? 1 : Math.pow(2, (DRIFT_CENTS * Math.sin(TAU * v.drPh)) / 1200)
+          v.freq = 440 * Math.pow(2, (v.curNote - 69) / 12) * lfoPitch * drift
+          if (v.sdata) v.srate = Math.pow(2, (v.curNote - v.sroot) / 12) * lfoPitch * (v.sdata.sampleRate / sr)
           let fc = sp.cutoff * Math.pow(2, sp.keyTrack * (v.curNote - 60) / 12) * Math.pow(2, sp.filterEnv * 4 * fe * (0.6 + 0.4 * v.vel)) * lfoCut
           fc = Math.max(20, Math.min(sr * 0.45, fc))
           v.fL.set(fc, sp.resonance, sr)
-          if (uni > 1) v.fR.set(fc, sp.resonance, sr)
+          if (stereo) v.fR.set(fc, sp.resonance, sr)
         }
         const freq = v.freq
         const dt2 = (freq * det2) / sr
@@ -638,7 +754,17 @@ export class Engine {
         const o2 = osc(sp.osc2, v.ph2, dt2)
         const pm = sp.fm > 0 ? sp.fm * 1.5 * o2 : 0
         let l = 0, r = 0
-        for (let u = 0; u < uni; u++) {
+        if (sampled) {
+          const d = v.sdata
+          if (!d) { v.active = false; break }
+          const c0 = d.channels[0], c1 = d.channels[1] ?? c0
+          const i0 = v.spos | 0
+          if (i0 >= c0.length - 1) { v.active = false; break }
+          const fr = v.spos - i0
+          l = c0[i0] + (c0[i0 + 1] - c0[i0]) * fr
+          r = c1[i0] + (c1[i0 + 1] - c1[i0]) * fr
+          v.spos += v.srate
+        } else for (let u = 0; u < uni; u++) {
           const dt = (freq * detune[u]) / sr
           let p = v.phases[u] + dt
           if (p >= 1) p -= 1
@@ -649,17 +775,17 @@ export class Engine {
           if (uni === 1) { l += s; r += s }
           else { const w = this.panW[u]; l += s * (1 - w) * 1.4; r += s * w * 1.4 }
         }
-        l *= uniGain; r *= uniGain
+        if (!sampled) { l *= uniGain; r *= uniGain }
         const dts = (freq * 0.5) / sr
         v.phSub += dts; if (v.phSub >= 1) v.phSub -= 1
         const sub = Math.sin(TAU * v.phSub) * sp.sub
         const nz = sp.noise > 0 ? white() * sp.noise : 0
         let xl = l * m1 + o2 * m2 + sub + nz
-        let xr = uni > 1 ? r * m1 + o2 * m2 + sub + nz : xl
+        let xr = stereo ? r * m1 + o2 * m2 + sub + nz : xl
         if (sp.drive > 0) { xl = Math.tanh(xl * driveAmt) * driveNorm; xr = Math.tanh(xr * driveAmt) * driveNorm }
         const yl = v.fL.lp(xl)
-        const yr = uni > 1 ? v.fR.lp(xr) : yl
-        const g = a * sp.gain * (0.35 + 0.65 * v.vel) * 0.32
+        const yr = stereo ? v.fR.lp(xr) : yl
+        const g = a * sp.gain * (0.35 + 0.65 * v.vel) * outGain
         L[i] += yl * g
         R[i] += yr * g
       }
@@ -731,7 +857,11 @@ export class Engine {
     }
     let voices = 0
     for (const t of this.tracks) {
-      if (t.synth) this.renderSynth(t, 0, n)
+      if (t.synth) {
+        this.renderSynth(t, 0, n)
+        const ch = t.synth.chorus ?? 0
+        if (ch > 0.001 && t.chorus) t.chorus.process(t.bufL, t.bufR, n, ch)
+      }
       else if (t.pads) this.renderDrums(t, 0, n)
       for (const v of t.voices) if (v.active) voices++
       for (const v of t.drums) if (v.active) voices++

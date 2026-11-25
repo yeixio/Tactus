@@ -9,6 +9,14 @@ All notable changes to Tactus are listed here. The format follows [Keep a Change
 - README with screenshots and a demo, docs for the language and the architecture, contributing guide, code of conduct, security policy, issue and pull request templates, and an app icon.
 - A Release workflow: one button tags `main`, builds the installers and publishes the GitHub Release.
 - Branches are deleted automatically when their pull request closes.
+- Recorded sounds: five drum kits (`studio`, `house`, `boom-bap`, `electro`, `trap`) and a sampled grand piano with `grand-piano`, `soft-piano` and `lofi-piano` presets. All public domain or CC0.
+- A stereo chorus on the synth (the Chorus knob), used by the keys and pad presets.
+
+### Changed
+
+- A smoother, less metallic reverb (a feedback delay network in place of Freeverb).
+- Synth notes drift very slightly in pitch and start at free-running phases, and drum hits vary a little from hit to hit, so repeated notes sound less mechanical.
+- The deep house, lo-fi and drum and bass templates use the recorded kits, and lo-fi uses the piano.
 
 ## [0.1.0] - 2026-11-25
 

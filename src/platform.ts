@@ -15,11 +15,20 @@ interface DesktopApi {
   saveDraft(json: string): Promise<void>
   loadDraft(): Promise<string | null>
   reveal(path: string): Promise<void>
+  readSound?(rel: string): Promise<ArrayBuffer>
 }
 
 const desktop: DesktopApi | undefined = (globalThis as unknown as { tactus?: DesktopApi }).tactus
 export const isDesktop = !!desktop
 export const isMac = desktop ? desktop.platform === 'darwin' : /Mac/.test(navigator.platform)
+
+/** Read a file of the factory sound pack (public/sounds), e.g. "piano/60.flac". */
+export async function loadSound(rel: string): Promise<ArrayBuffer> {
+  if (desktop?.readSound && location.protocol === 'file:') return desktop.readSound(rel)
+  const r = await fetch(new URL(`sounds/${rel}`, document.baseURI))
+  if (!r.ok) throw new Error(`Missing sound ${rel}`)
+  return r.arrayBuffer()
+}
 
 /** Raw bytes of user samples, by file name. Decoded by the audio bridge. */
 export const userSampleBytes = new Map<string, ArrayBuffer>()

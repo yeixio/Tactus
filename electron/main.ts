@@ -143,6 +143,14 @@ app.whenReady().then(() => {
   ipcMain.handle('draft:save', async (_e, json: string) => { await fs.mkdir(userData(), { recursive: true }); await fs.writeFile(draftFile(), json) })
   ipcMain.handle('draft:load', async () => { try { return await fs.readFile(draftFile(), 'utf8') } catch { return null } })
   ipcMain.handle('shell:reveal', (_e, p: string) => shell.showItemInFolder(p))
+  // Factory sound pack (dist/sounds). The page is loaded from file://, where fetch() can't read files.
+  ipcMain.handle('sound:read', async (_e, rel: string) => {
+    const root = path.join(__dirname, '..', 'dist', 'sounds')
+    const file = path.resolve(root, String(rel))
+    if (!file.startsWith(root + path.sep) || !file.endsWith('.flac')) throw new Error('Not a sound pack file')
+    const b = await fs.readFile(file)
+    return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)
+  })
   ipcMain.handle('audio:export', async (e, name: string, data: ArrayBuffer, dir?: string) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const r = await dialog.showSaveDialog(win!, {

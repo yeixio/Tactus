@@ -3,6 +3,7 @@
 
 import type { Diagnostic, Tok } from './lexer'
 import { parseFile, type PClip, type PSong, type PTrack } from './parser'
+import { INSTRUMENTS } from '../model/soundpack'
 import { DRUM_LINES, PAD_NAMES, SYNTH_PRESETS, drumKit, synthPreset, DRUM_KITS } from '../model/presets'
 import { GenError, runGen, parseGenCall, formatGenCall } from '../model/generate'
 import { parseKey, parseNote } from '../model/theory'
@@ -195,7 +196,8 @@ function buildTrack(pt: PTrack, old: Track | undefined, index: number, p: Projec
       const key = prm.name as keyof SynthParams
       const cur = t.synth![key]
       if (key === 'osc1' || key === 'osc2') {
-        if (!WAVES.includes(String(v))) { diags.push(err(f, prm.tok, `Waveform must be one of ${WAVES.join(', ')}`)); continue }
+        const allowed = key === 'osc1' ? [...WAVES, ...Object.keys(INSTRUMENTS)] : WAVES
+        if (!allowed.includes(String(v))) { diags.push(err(f, prm.tok, `${key === 'osc1' ? 'Source' : 'Waveform'} must be one of ${allowed.join(', ')}`)); continue }
         ;(t.synth as unknown as Record<string, unknown>)[key] = String(v)
       } else if (typeof cur === 'boolean') {
         ;(t.synth as unknown as Record<string, unknown>)[key] = v === 'on' || v === 'true' || v === 1

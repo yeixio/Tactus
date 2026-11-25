@@ -91,7 +91,7 @@ export const TEMPLATES: Template[] = [
   {
     id: 'deep-house', title: 'Deep house', blurb: 'Warm chords, rolling bass, four-on-the-floor.', emoji: '🌇', bpm: 122, key: 'A minor', swing: 0.08,
     tracks: (k, s) => [
-      { name: 'Drums', kind: 'drums', preset: 'punchy', clips: [
+      { name: 'Drums', kind: 'drums', preset: 'house', clips: [
         { name: 'Groove', bars: 2, gen: `drums(house, ${s})` },
         { name: 'Kick only', bars: 1, gen: 'euclid(4, 16, kick)' },
       ] },
@@ -142,7 +142,7 @@ export const TEMPLATES: Template[] = [
   {
     id: 'dnb', title: 'Drum and bass groove', blurb: 'Fast breaks and a moving reese bass.', emoji: '⚡', bpm: 172, key: 'F minor',
     tracks: (k, s) => [
-      { name: 'Drums', kind: 'drums', preset: 'punchy', smart: { energy: 0.65 }, clips: [
+      { name: 'Drums', kind: 'drums', preset: 'studio', smart: { energy: 0.65 }, clips: [
         { name: 'Break', bars: 2, gen: `drums(dnb, ${s})` },
         { name: 'Halftime', bars: 2, gen: `drums(breakbeat, ${s})` },
       ] },
@@ -167,10 +167,10 @@ export const TEMPLATES: Template[] = [
   {
     id: 'lofi', title: 'Lo-fi beat', blurb: 'Dusty drums, mellow keys, lazy swing.', emoji: '☕', bpm: 84, key: 'E minor', swing: 0.2,
     tracks: (k, s) => [
-      { name: 'Drums', kind: 'drums', preset: 'lofi', smart: { warmth: 0.75 }, clips: [
+      { name: 'Drums', kind: 'drums', preset: 'boom-bap', smart: { warmth: 0.75 }, clips: [
         { name: 'Boom bap', bars: 2, gen: `drums(hiphop, ${s})` },
       ] },
-      { name: 'Keys', kind: 'synth', preset: 'e-piano', smart: { warmth: 0.7 }, mix: { sendReverb: 0.3 }, clips: [
+      { name: 'Keys', kind: 'synth', preset: 'lofi-piano', smart: { warmth: 0.7 }, mix: { sendReverb: 0.3 }, clips: [
         { name: 'Chords', bars: 4, gen: `chords("${P(k, 2)}", pad)` },
       ] },
       { name: 'Bass', kind: 'synth', preset: 'sub-bass', clips: [
