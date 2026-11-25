@@ -79,6 +79,12 @@ The engine runs on the real-time audio thread, so code in the audio loop must no
 
 CI runs the checks and builds installers for every platform on each pull request.
 
+## Releasing
+
+Maintainers release from GitHub: **Actions → Release → Run workflow**. It picks the next version, checks that `main` passed Build, tags it, builds the installers and publishes the GitHub Release. A stable release needs its notes in `docs/release-notes/<tag>.md` on `main` first, for example `docs/release-notes/v0.1.1.md`.
+
+Branches are deleted automatically when their pull request closes.
+
 ## Code style
 
 - TypeScript in strict mode. Outside the engine, prefer plain functions and data over classes.
