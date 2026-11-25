@@ -294,3 +294,17 @@ describe('presets', () => {
     }
   })
 })
+
+describe('language and sampled sources', () => {
+  it('round-trips a synth track switched to the piano through code', () => {
+    const p = projectFromTemplate(TEMPLATES[0], { seed: 2 })
+    const keys = p.tracks.find((t) => t.name === 'Keys')!
+    keys.synth!.osc1 = 'piano'
+    keys.synth!.chorus = 0.6
+    const r = buildProject(printProject(p), p)
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+    const k2 = r.project!.tracks.find((t) => t.name === 'Keys')!
+    expect(k2.synth!.osc1).toBe('piano')
+    expect(k2.synth!.chorus).toBeCloseTo(0.6)
+  })
+})
