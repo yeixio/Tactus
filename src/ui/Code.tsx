@@ -323,7 +323,7 @@ export function CodeWorkspace() {
         {cursorClip ? (
           <div className="cursor-clip" style={{ ['--tc' as string]: cursorClip.track.color }}>
             <div><span className="swatch" /> <b>{cursorClip.track.name}</b> / {cursorClip.clip.name}</div>
-            <ClipThumb clip={cursorClip.clip} track={cursorClip.track} width={230} height={90} />
+            <ClipThumb clip={cursorClip.clip} track={cursorClip.track} width={212} height={90} />
             <div className="muted small">{cursorClip.clip.notes.length} notes · {cursorClip.clip.length / 16} bar{cursorClip.clip.length === 16 ? '' : 's'}</div>
             <div className="row">
               <button onClick={() => audio.launchClip(cursorClip.track.id, cursorClip.clip.id, useApp.getState().quantize)}><Icon name="play" size={11} /> Launch</button>

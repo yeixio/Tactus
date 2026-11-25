@@ -1,0 +1,48 @@
+name: Bug report
+description: Something sounds wrong, looks wrong or doesn't work
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! The more we can reproduce, the faster it gets fixed.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Pick the Deep house starting point
+        2. Open Code and change ...
+        3. Press Run
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Code or project
+      description: If you can, paste the .tac code or attach the zipped project folder that shows the problem.
+      render: text
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where are you running Tactus?
+      options: [macOS app, Windows app, Linux app, Browser (npm run web), Desktop from source (npm run dev)]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From the release you downloaded, or the commit if you built from source.
+      placeholder: v0.1.0
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, audio clips, console errors, your MIDI controller or audio interface.

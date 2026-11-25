@@ -1,0 +1,30 @@
+name: Feature idea
+description: Suggest something that would make Tactus better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the musical or creative goal, not only the feature.
+      placeholder: When I perform live I want to ...
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How could Tactus help? Sketches and code examples are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How do you do this today?
+      description: Other tools, workarounds, or what you've tried.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to help build this.
