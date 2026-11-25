@@ -8,17 +8,34 @@ const userData = () => app.getPath('userData')
 const recentFile = () => path.join(userData(), 'recent.json')
 const draftFile = () => path.join(userData(), 'draft.json')
 
-async function readRecent(): Promise<{ path: string; name: string; updatedAt: string }[]> {
+interface Recent { path: string; name: string; updatedAt: string; bookmark?: string }
+
+async function readRecent(): Promise<Recent[]> {
   try { return JSON.parse(await fs.readFile(recentFile(), 'utf8')) } catch { return [] }
 }
-async function pushRecent(p: string, name: string) {
+async function pushRecent(p: string, name: string, bookmark?: string) {
+  const old = (await readRecent()).find((r) => r.path === p)
   const list = (await readRecent()).filter((r) => r.path !== p)
-  list.unshift({ path: p, name, updatedAt: new Date().toISOString() })
+  list.unshift({ path: p, name, updatedAt: new Date().toISOString(), bookmark: bookmark || old?.bookmark })
   await fs.mkdir(userData(), { recursive: true })
   await fs.writeFile(recentFile(), JSON.stringify(list.slice(0, 12), null, 2))
 }
 
-async function loadProject(dir: string) {
+// In the Mac App Store build the app is sandboxed: it can only reach folders
+// the user picked in a dialog (and ~/Music). Security-scoped bookmarks from
+// those dialogs let it reopen recent projects after a relaunch. Elsewhere
+// these are no-ops.
+const accessing = new Set<string>()
+function startAccess(bookmark?: string) {
+  if (!process.mas || !bookmark || accessing.has(bookmark)) return
+  try {
+    app.startAccessingSecurityScopedResource(bookmark)
+    accessing.add(bookmark)
+  } catch { /* a stale bookmark just means the folder needs opening again */ }
+}
+
+async function loadProject(dir: string, bookmark?: string) {
+  startAccess(bookmark)
   const json = await fs.readFile(path.join(dir, 'project.json'), 'utf8')
   const samples: { name: string; data: ArrayBuffer }[] = []
   const sdir = path.join(dir, 'samples')
@@ -29,7 +46,7 @@ async function loadProject(dir: string) {
     }
   }
   const name = JSON.parse(json).name ?? path.basename(dir)
-  await pushRecent(dir, name)
+  await pushRecent(dir, name, bookmark)
   return { path: dir, json, samples }
 }
 
@@ -43,15 +60,19 @@ interface SaveArgs {
 
 async function saveProject(a: SaveArgs, win: BrowserWindow | null) {
   let dir = a.path
+  let bookmark: string | undefined
   if (!dir) {
     const r = await dialog.showSaveDialog(win!, {
       title: 'Save project',
       defaultPath: path.join(app.getPath('music'), a.name.replace(/[\\/:*?"<>|]/g, '-') + EXT),
       buttonLabel: 'Save',
       properties: ['createDirectory'],
+      securityScopedBookmarks: true,
     })
     if (r.canceled || !r.filePath) return null
     dir = r.filePath.endsWith(EXT) ? r.filePath : r.filePath + EXT
+    bookmark = r.bookmark
+    startAccess(bookmark)
   }
   await fs.mkdir(path.join(dir, 'src', 'tracks'), { recursive: true })
   await fs.mkdir(path.join(dir, 'samples'), { recursive: true })
@@ -74,7 +95,7 @@ async function saveProject(a: SaveArgs, win: BrowserWindow | null) {
   }
   const manifest = { format: 'tactus-project', schema: JSON.parse(a.json).schema, app: PRODUCT, version: app.getVersion() }
   await fs.writeFile(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-  await pushRecent(dir, a.name)
+  await pushRecent(dir, a.name, bookmark)
   return dir
 }
 
@@ -108,15 +129,17 @@ app.whenReady().then(() => {
 
   ipcMain.handle('project:openDialog', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
-    const r = await dialog.showOpenDialog(win!, { title: 'Open project', properties: ['openDirectory', 'openFile'], filters: [{ name: 'Projects', extensions: ['tactus', 'json'] }] })
+    const r = await dialog.showOpenDialog(win!, { title: 'Open project', properties: ['openDirectory', 'openFile'], filters: [{ name: 'Projects', extensions: ['tactus', 'json'] }], securityScopedBookmarks: true })
     if (r.canceled || !r.filePaths[0]) return null
     let p = r.filePaths[0]
     if (p.endsWith('project.json')) p = path.dirname(p)
-    return loadProject(p)
+    return loadProject(p, r.bookmarks?.[0])
   })
-  ipcMain.handle('project:openPath', (_e, p: string) => loadProject(p))
+  ipcMain.handle('project:openPath', async (_e, p: string) => loadProject(p, (await readRecent()).find((r) => r.path === p)?.bookmark))
   ipcMain.handle('project:save', (e, a: SaveArgs) => saveProject(a, BrowserWindow.fromWebContents(e.sender)))
-  ipcMain.handle('project:recent', async () => (await readRecent()).filter((r) => existsSync(path.join(r.path, 'project.json'))))
+  ipcMain.handle('project:recent', async () => (await readRecent())
+    .filter((r) => { startAccess(r.bookmark); return existsSync(path.join(r.path, 'project.json')) })
+    .map(({ bookmark: _b, ...r }) => r))
   ipcMain.handle('draft:save', async (_e, json: string) => { await fs.mkdir(userData(), { recursive: true }); await fs.writeFile(draftFile(), json) })
   ipcMain.handle('draft:load', async () => { try { return await fs.readFile(draftFile(), 'utf8') } catch { return null } })
   ipcMain.handle('shell:reveal', (_e, p: string) => shell.showItemInFolder(p))
