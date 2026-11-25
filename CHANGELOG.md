@@ -7,7 +7,8 @@ All notable changes to Tactus are listed here. The format follows [Keep a Change
 ### Added
 
 - README with screenshots and a demo, docs for the language and the architecture, contributing guide, code of conduct, security policy, issue and pull request templates, and an app icon.
-- Tagged versions (`v*`) publish installers to a GitHub Release automatically.
+- A Release workflow: one button tags `main`, builds the installers and publishes the GitHub Release.
+- Branches are deleted automatically when their pull request closes.
 
 ## [0.1.0] - 2026-11-25
 
