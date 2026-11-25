@@ -354,3 +354,10 @@ input.numdrag { cursor: text; }
 .steps-guide b { color: var(--text); }
 .ce-bar button { padding: 3px 7px; font-size: 12px; }
 .ce-bar .gen-badge { max-width: 190px; }
+
+/* recording */
+.rec-wrap { display: inline-flex; flex-direction: column; gap: 2px; }
+.rec-btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 4px; }
+.rec-btn.on { color: #ff5a4f; border-color: color-mix(in srgb, #ff5a4f 50%, transparent); }
+.rec-level { position: absolute; left: 0; bottom: 0; height: 2px; background: #ff5a4f; transition: width 40ms linear; }
+.rec-msg { max-width: 220px; white-space: normal; }

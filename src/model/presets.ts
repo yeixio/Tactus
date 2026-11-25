@@ -9,6 +9,7 @@ const BASE: SynthParams = {
   fltA: 0.005, fltD: 0.35, fltS: 0.3, fltR: 0.3,
   lfoRate: 2, lfoCutoff: 0, lfoPitch: 0,
   glide: 0, mono: false, drive: 0.1, gain: 0.8, chorus: 0,
+  sample: '', sampleRoot: 60,
 }
 
 const p = (o: Partial<SynthParams>): SynthParams => ({ ...BASE, ...o })
@@ -47,6 +48,8 @@ export const SYNTH_PRESETS: SynthPreset[] = [
     params: p({ osc1: 'piano', osc2: 'sine', oscMix: 0, cutoff: 1600, resonance: 0, filterEnv: 0.3, fltA: 0.001, fltD: 1.2, fltS: 0.35, keyTrack: 0.7, ampA: 0.002, ampD: 1, ampS: 1, ampR: 0.6, drive: 0, gain: 0.95, chorus: 0.15 }) },
   { name: 'lofi-piano', category: 'keys', description: 'Dusty, wobbly tape piano.',
     params: p({ osc1: 'piano', osc2: 'sine', oscMix: 0, cutoff: 2800, resonance: 0.1, filterEnv: 0, keyTrack: 0.4, ampA: 0.002, ampD: 1, ampS: 1, ampR: 0.4, lfoRate: 0.7, lfoPitch: 7, drive: 0.3, gain: 0.85, chorus: 0.4 }) },
+  { name: 'sampler', category: 'keys', description: 'Plays your own recording across the keyboard. Record or load a sound in the Instrument Lab.',
+    params: p({ osc1: 'sampler', osc2: 'sine', oscMix: 0, cutoff: 18000, resonance: 0, filterEnv: 0, keyTrack: 0, ampA: 0.002, ampD: 1, ampS: 1, ampR: 0.25, drive: 0, gain: 0.9 }) },
   { name: 'organ', category: 'keys', description: 'Drawbar-style organ.',
     params: p({ osc1: 'sine', osc2: 'sine', osc2Semi: 12, oscMix: 0.4, sub: 0.35, cutoff: 7000, resonance: 0, filterEnv: 0, ampA: 0.004, ampS: 1, ampR: 0.08, lfoRate: 6, lfoPitch: 3, drive: 0.2, gain: 0.55, chorus: 0.3 }) },
   { name: 'bell', category: 'pluck', description: 'Metallic FM bell.',

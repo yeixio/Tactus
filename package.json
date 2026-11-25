@@ -55,7 +55,10 @@
       "category": "public.app-category.music",
       "target": [
         "dmg"
-      ]
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Tactus uses the microphone when you record your own sounds into a drum pad or the sampler."
+      }
     },
     "win": {
       "target": [

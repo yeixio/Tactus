@@ -69,6 +69,7 @@ export function usedSampleIds(p: Project): string[] {
   for (const t of p.tracks) {
     for (const pad of t.pads ?? []) ids.add(pad.sample)
     if (t.synth && isInstrument(t.synth.osc1)) for (const id of instrumentSampleIds(t.synth.osc1)) ids.add(id)
+    if (t.synth?.osc1 === 'sampler' && t.synth.sample) ids.add(t.synth.sample)
   }
   return [...ids]
 }

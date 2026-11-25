@@ -196,8 +196,10 @@ function buildTrack(pt: PTrack, old: Track | undefined, index: number, p: Projec
       const key = prm.name as keyof SynthParams
       const cur = t.synth![key]
       if (key === 'osc1' || key === 'osc2') {
-        const allowed = key === 'osc1' ? [...WAVES, ...Object.keys(INSTRUMENTS)] : WAVES
+        const allowed = key === 'osc1' ? [...WAVES, ...Object.keys(INSTRUMENTS), 'sampler'] : WAVES
         if (!allowed.includes(String(v))) { diags.push(err(f, prm.tok, `${key === 'osc1' ? 'Source' : 'Waveform'} must be one of ${allowed.join(', ')}`)); continue }
+        ;(t.synth as unknown as Record<string, unknown>)[key] = String(v)
+      } else if (key === 'sample') {
         ;(t.synth as unknown as Record<string, unknown>)[key] = String(v)
       } else if (typeof cur === 'boolean') {
         ;(t.synth as unknown as Record<string, unknown>)[key] = v === 'on' || v === 'true' || v === 1
