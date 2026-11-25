@@ -128,6 +128,8 @@ Tactus is at **v0.1**: the core creative loop works end to end. Next up, roughly
 - [ ] Native engine (JUCE) behind the same protocol, then VST3 and CLAP hosting
 - [ ] Extension SDK and a package format for presets, kits and templates
 
+The bigger plans (other music languages, IDE-style editor tooling, sharing songs through git, and optional AI assistance) are tracked in the [roadmap issue](https://github.com/yeixio/Tactus/issues/30).
+
 Have an idea? [Open a discussion](https://github.com/yeixio/Tactus/discussions) or pick up a [good first issue](https://github.com/yeixio/Tactus/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
 
 ## Contributing
