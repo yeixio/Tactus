@@ -12,10 +12,11 @@ An open-source music development environment: a studio, a live-coding language,<
 [![License: MIT](https://img.shields.io/badge/license-MIT-ff7a45.svg)](LICENSE)
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-3ec7a1)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-4aa8ff?logo=typescript&logoColor=white)
+[![Donate to Tactus](https://img.shields.io/badge/Donate-Support_Tactus-ff6a55?logo=stripe&logoColor=white)](https://yeix.io/donate/tactus)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-ffb627.svg)](CONTRIBUTING.md)
 [![Good first issues](https://img.shields.io/github/issues/yeixio/Tactus/good%20first%20issue?label=good%20first%20issues&color=b07cff)](https://github.com/yeixio/Tactus/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
 
-[**Download**](https://github.com/yeixio/Tactus/releases) · [Quick start](#quick-start) · [The language](docs/language.md) · [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md)
+[**Download**](https://github.com/yeixio/Tactus/releases) · [Quick start](#quick-start) · [The language](docs/language.md) · [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md) · [Donate](https://yeix.io/donate/tactus)
 
 <img src="docs/media/demo.gif" width="880" alt="Tactus demo: picking a starting point, shaping the sound with smart controls, launching scenes, turning a performance macro and changing the tempo from code while the music plays" />
 
@@ -127,6 +128,8 @@ Tactus is at **v0.1**: the core creative loop works end to end. Next up, roughly
 - [ ] Native engine (JUCE) behind the same protocol, then VST3 and CLAP hosting
 - [ ] Extension SDK and a package format for presets, kits and templates
 
+The bigger plans (other music languages, IDE-style editor tooling, sharing songs through git, and optional AI assistance) are tracked in the [roadmap issue](https://github.com/yeixio/Tactus/issues/30).
+
 Have an idea? [Open a discussion](https://github.com/yeixio/Tactus/discussions) or pick up a [good first issue](https://github.com/yeixio/Tactus/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
 
 ## Contributing
@@ -134,6 +137,12 @@ Have an idea? [Open a discussion](https://github.com/yeixio/Tactus/discussions) 
 Contributions of every size are welcome: code, presets, drum kits, templates, docs, bug reports and music made with Tactus. Start with [CONTRIBUTING.md](CONTRIBUTING.md). It covers setup, the codebase map, and how to add a preset, a generator or a language feature.
 
 Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md). To report a security issue, see [SECURITY.md](SECURITY.md).
+
+## Support Tactus
+
+Tactus is free and open source, and always will be. [Donations](https://yeix.io/donate/tactus) (once or monthly, by card) fund its development: the native engine, more instruments, and the time to keep it all working on macOS, Windows and Linux.
+
+[![Donate to Tactus](https://img.shields.io/badge/Donate-Support_Tactus-ff6a55?style=for-the-badge&logo=stripe&logoColor=white)](https://yeix.io/donate/tactus)
 
 ## License
 
