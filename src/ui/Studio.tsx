@@ -152,7 +152,7 @@ function SessionRow({ track: t, project, playing, queued, selClip }: { track: Tr
 
 function Timeline({ project }: { project: Project }) {
   const status = useEngine((s) => s.status)
-  const BAR = 22
+  const BAR = 30
   const total = songBars(project)
   const song = status?.playing && status.mode === 'song'
   const up = useApp.getState().update
