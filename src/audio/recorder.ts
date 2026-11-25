@@ -2,6 +2,7 @@
 // so they come out the same on desktop, iOS and Android.
 import recorderUrl from './recorder.worklet.ts?worker&url'
 import { audio } from './bridge'
+import { useRecordingSession } from './session'
 import { cleanTake, detectPitch, type Take } from './take'
 import { encodeWav } from '../engine/render'
 import { userSampleBytes } from '../platform'
@@ -45,9 +46,11 @@ export async function recordMic(opts: RecordOptions = {}): Promise<Recording> {
   await audio.ensure()
   const ctx = audio.ctx!
   let stream: MediaStream
+  useRecordingSession(true)
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
   } catch (e) {
+    useRecordingSession(false)
     const name = (e as DOMException)?.name
     throw new MicError(name === 'NotAllowedError' || name === 'SecurityError'
       ? 'Microphone access is off. Allow Tactus to use the microphone in your system settings, then try again.'
@@ -75,6 +78,7 @@ export async function recordMic(opts: RecordOptions = {}): Promise<Recording> {
       setTimeout(() => {
         src.disconnect(); node.disconnect(); mute.disconnect()
         for (const t of stream.getTracks()) t.stop()
+        useRecordingSession(false)
         const all = new Float32Array(total)
         let o = 0
         for (const c of chunks) { all.set(c, o); o += c.length }
