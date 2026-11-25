@@ -3,6 +3,28 @@
   "productName": "Tactus",
   "version": "0.1.0",
   "description": "A music development environment: compose, code and perform on one live audio engine.",
+  "license": "MIT",
+  "author": "The Tactus contributors",
+  "homepage": "https://github.com/yeixio/Tactus#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yeixio/Tactus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yeixio/Tactus/issues"
+  },
+  "keywords": [
+    "music",
+    "daw",
+    "live-coding",
+    "synthesizer",
+    "sequencer",
+    "electron",
+    "web-audio",
+    "audioworklet",
+    "music-programming",
+    "creative-coding"
+  ],
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",
