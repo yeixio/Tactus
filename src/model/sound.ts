@@ -72,6 +72,7 @@ export const SMART_DEFS: SmartControlDef[] = [
       { target: 'mix.sendDelay', amount: 0.3, curve: 'lin' },
       { target: 'synth.ampR', amount: 1.5, curve: 'oct' },
       { target: 'synth.spread', amount: 10, curve: 'lin' },
+      { target: 'synth.chorus', amount: 0.25, curve: 'lin' },
     ],
     drums: [
       { target: 'mix.sendReverb', amount: 0.35, curve: 'lin' },
@@ -126,6 +127,7 @@ const SYNTH_RANGES: Partial<Record<keyof SynthParams, [number, number, number, n
   spread: [0, 45, 0, 100],
   unison: [1, 7, 1, 7],
   gain: [0, 1.2, 0, 2],
+  chorus: [0, 1, 0, 1],
 }
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x))

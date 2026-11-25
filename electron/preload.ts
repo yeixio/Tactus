@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld('tactus', {
   saveDraft: (json: string) => ipcRenderer.invoke('draft:save', json),
   loadDraft: () => ipcRenderer.invoke('draft:load'),
   reveal: (path: string) => ipcRenderer.invoke('shell:reveal', path),
+  readSound: (rel: string) => ipcRenderer.invoke('sound:read', rel),
 })

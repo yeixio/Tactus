@@ -53,15 +53,15 @@ Comments start with `//`.
 track <Name> <synth|drums> [preset] { ... }
 ```
 
-Synth presets: `analog-bass`, `sub-bass`, `acid`, `reese`, `supersaw`, `square-lead`, `pluck`, `warm-pad`, `glass-pad`, `e-piano`, `organ`, `bell`, `chord-stab`, `noise-riser`.
+Synth presets: `analog-bass`, `sub-bass`, `acid`, `reese`, `supersaw`, `square-lead`, `pluck`, `warm-pad`, `glass-pad`, `e-piano`, `grand-piano`, `soft-piano`, `lofi-piano`, `organ`, `bell`, `chord-stab`, `noise-riser`.
 
-Drum kits: `808`, `punchy`, `lofi`, `industrial`.
+Drum kits: `808`, `punchy`, `lofi`, `industrial` (synthesized), and `studio`, `house`, `boom-bap`, `electro`, `trap` (recorded).
 
 Inside a track you can set:
 
 - **Smart controls** from 0 to 1: `warmth`, `brightness`, `movement`, `space`, `energy`, `texture`. Each one moves several underlying parameters at once. They are defined in [`src/model/sound.ts`](../src/model/sound.ts).
 - **Mix:** `volume`, `pan`, `reverb`, `delay`, `saturation`, `tone` (the DJ filter, negative is low-pass and positive is high-pass), `duck`, plus `mute` and `solo`, and `color "#ff6b4a"`.
-- **Synth settings** (synth tracks): `osc1`, `osc2` (`saw`, `square`, `triangle`, `sine`), `osc2Semi`, `osc2Detune`, `oscMix`, `sub`, `noise`, `unison`, `spread`, `fm`, `cutoff`, `resonance`, `filterEnv`, `keyTrack`, `ampA`, `ampD`, `ampS`, `ampR`, `fltA`, `fltD`, `fltS`, `fltR`, `lfoRate`, `lfoCutoff`, `lfoPitch`, `glide`, `mono`, `drive`, `gain`.
+- **Synth settings** (synth tracks): `osc1`, `osc2` (`saw`, `square`, `triangle`, `sine`; `osc1` can also be `piano`), `osc2Semi`, `osc2Detune`, `oscMix`, `sub`, `noise`, `unison`, `spread`, `fm`, `cutoff`, `resonance`, `filterEnv`, `keyTrack`, `ampA`, `ampD`, `ampS`, `ampR`, `fltA`, `fltD`, `fltS`, `fltR`, `lfoRate`, `lfoCutoff`, `lfoPitch`, `glide`, `mono`, `drive`, `gain`, `chorus`.
 - **Pads** (drum tracks): `pad <name> tune -2 decay 0.8 gain 0.9 pan 0.1 sample "my-kick.wav"`. Pad names are `kick`, `snare`, `clap`, `hat`, `openhat`, `tom`, `rim`, `perc`.
 
 ## Clips

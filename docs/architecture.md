@@ -44,7 +44,11 @@ The engine core in [`src/engine/core/engine.ts`](../src/engine/core/engine.ts) i
 
 It schedules notes with sample accuracy. Song changes, scene launches and clip launches are quantized to `now`, `beat` or `bar`. The UI thread never times notes.
 
-Instruments are a polyBLEP synth (two oscillators, sub, noise, unison, FM, a state-variable filter, two envelopes, an LFO and glide) and an 8-pad drum sampler. The factory kits are synthesized at startup in [`samples.ts`](../src/engine/core/samples.ts), so the repository holds no audio files. Effects are per-track drive, DJ filter, sidechain duck and sends, then a master ping-pong delay, reverb (Freeverb), glue compressor and limiter.
+Instruments are a polyBLEP synth (two oscillators, sub, noise, unison, FM, a state-variable filter, two envelopes, an LFO, glide, slow analog drift and a stereo chorus) and an 8-pad drum sampler. Oscillator 1 can also play a sampled instrument (the grand piano): the engine picks the nearest recorded note and repitches it, and the rest of the synth (filter, envelopes, chorus) still applies.
+
+There are two kinds of factory sounds. Four kits (`808`, `punchy`, `lofi`, `industrial`) are synthesized at startup in [`samples.ts`](../src/engine/core/samples.ts). The recorded kits and the piano are FLAC files in [`public/sounds`](../public/sounds), all public domain or CC0 (see [CREDITS.md](../public/sounds/CREDITS.md)), listed in [`soundpack.ts`](../src/model/soundpack.ts) and rebuilt with `scripts/build-sound-pack.py`. The audio bridge decodes them and sends them to the engine as `sample` messages, so the engine itself never touches files.
+
+Effects are per-track drive, DJ filter, sidechain duck and sends, then a master ping-pong delay, a feedback-delay-network reverb, glue compressor and limiter.
 
 ## The message protocol
 

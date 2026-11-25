@@ -6,6 +6,8 @@ export const STEPS_PER_BEAT = 4
 export const STEPS_PER_BAR = 16
 
 export type Wave = 'saw' | 'square' | 'triangle' | 'sine'
+/** What oscillator 1 plays: a waveform, or a sampled instrument from the factory sound pack. */
+export type Source = Wave | 'piano'
 
 export const SCALES = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -45,7 +47,7 @@ export interface Clip {
 }
 
 export interface SynthParams {
-  osc1: Wave
+  osc1: Source
   osc2: Wave
   osc2Semi: number
   osc2Detune: number // cents
@@ -74,6 +76,7 @@ export interface SynthParams {
   mono: boolean
   drive: number // 0..1
   gain: number // 0..1.5
+  chorus: number // 0..1, stereo chorus after the voices
 }
 
 export interface DrumPad {

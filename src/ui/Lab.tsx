@@ -8,6 +8,7 @@ import { Icon, Knob, Seg } from './controls'
 import { SmartKnobs, pct } from './Studio'
 import * as A from './actions'
 import { userSampleBytes } from '../platform'
+import { INSTRUMENTS } from '../model/soundpack'
 import { noteName } from '../model/theory'
 
 export function Lab() {
@@ -78,8 +79,10 @@ function SynthPanel({ track }: { track: Track }) {
     <Knob size={46} label={label} value={sp[k] as number} min={min} max={max} log={o.log} def={synthPreset(track.preset)[k] as number} color={track.color}
       onChange={(v) => set(k)(o.step ? Math.round(v / o.step) * o.step : v)} format={o.fmt ?? ((v) => v.toFixed(2))} />
   )
+  const waves = (['saw', 'square', 'triangle', 'sine'] as Wave[]).map((w) => ({ value: w as string, label: <WaveIcon w={w} />, title: w }))
   const wave = (k: 'osc1' | 'osc2') => (
-    <Seg small value={sp[k]} onChange={(v) => set(k)(v)} options={(['saw', 'square', 'triangle', 'sine'] as Wave[]).map((w) => ({ value: w, label: <WaveIcon w={w} />, title: w }))} />
+    <Seg small value={sp[k]} onChange={(v) => set(k)(v)}
+      options={k === 'osc1' ? [...waves, ...Object.values(INSTRUMENTS).map((i) => ({ value: i.name, label: <span className="small">{i.name}</span>, title: i.description }))] : waves} />
   )
   const sec = (s: number) => (s < 1 ? `${Math.round(s * 1000)}ms` : `${s.toFixed(2)}s`)
   return (
@@ -97,6 +100,7 @@ function SynthPanel({ track }: { track: Track }) {
           {K('fm', 'FM', 0, 1, { fmt: pct })}
           {K('unison', 'Unison', 1, 7, { step: 1, fmt: (v) => `${Math.round(v)}×` })}
           {K('spread', 'Spread', 0, 60, { fmt: (v) => `${Math.round(v)}c` })}
+          {K('chorus', 'Chorus', 0, 1, { fmt: pct })}
         </div>
       </div>
       <div className="lab-card">
@@ -192,7 +196,7 @@ function PadPanel({ track }: { track: Track }) {
             onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drop'); const f = e.dataTransfer.files[0]; if (f) load(i, f) }}>
             <button className="pad-hit" onPointerDown={() => audio.preview(track.id, i, 0.95, 1)}>
               <b>{PAD_NAMES[i]}</b>
-              <span className="muted small">{p.sample.startsWith('user:') ? p.sample.slice(5) : p.sample.replace('factory:', '')}</span>
+              <span className="muted small">{p.sample.startsWith('user:') ? p.sample.slice(5) : p.sample.replace(/^(factory:|sound:drums\/)/, '')}</span>
             </button>
             <div className="row">
               <Knob size={34} label="Tune" value={p.tune} min={-24} max={24} def={0} bipolar color={track.color} onChange={(v) => set(i, 'tune', Math.round(v))} format={(v) => `${v > 0 ? '+' : ''}${Math.round(v)}`} />
