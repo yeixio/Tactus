@@ -55,5 +55,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist-artifacts/* \
-            --repo "$GITHUB_REPOSITORY" --title "Tactus $GITHUB_REF_NAME" --generate-notes
+          # The release may already exist when the tag was created from the GitHub Releases page.
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --title "Tactus $GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist-artifacts/* --repo "$GITHUB_REPOSITORY" --clobber
