@@ -5,7 +5,7 @@ import { MOODS, TEMPLATES, blankProject, projectFromTemplate, type Template } fr
 import { loadDraft, openProject, openRecent, recentProjects, isDesktop } from '../platform'
 import type { Project } from '../model/types'
 import { APP_NAME } from '../brand'
-import { Icon } from './controls'
+import { Icon, StyleIcon } from './controls'
 
 export function Home() {
   const [mood, setMood] = useState('none')
@@ -29,7 +29,7 @@ export function Home() {
     const scene = p.scenes[Math.min(1, p.scenes.length - 1)]
     await audio.ensure()
     if (scene) { audio.launchScene(scene.id, 'now'); audio.play('live') }
-    st.tip({ id: 'first-play', text: 'It is playing. Launch other scenes with the ▶ buttons, turn the smart controls on the right, or click a clip to edit it. Everything you change is heard immediately.' })
+    st.tip({ id: 'first-play', text: 'It is playing. Launch other scenes with the play buttons, turn the smart controls on the right, or click a clip to edit it. Everything you change is heard immediately.' })
   }
   const load = (p: Project, path: string | null) => {
     useApp.getState().setProject(p, { path })
@@ -54,14 +54,14 @@ export function Home() {
       <div className="templates">
         {TEMPLATES.map((t) => (
           <button key={t.id} className={`tpl ${t.codeFirst ? 'code' : ''}`} onClick={() => start(t)}>
-            <span className="tpl-emoji">{t.emoji}</span>
+            <StyleIcon name={t.icon} />
             <b>{t.title}</b>
             <span className="muted small">{t.blurb}</span>
             <span className="tpl-meta">{t.bpm} BPM · {t.key}</span>
           </button>
         ))}
         <button className="tpl blank" onClick={() => { load(blankProject(), null) }}>
-          <span className="tpl-emoji">◻︎</span>
+          <StyleIcon name="blank" />
           <b>Blank project</b>
           <span className="muted small">Drums, bass and keys with empty clips.</span>
         </button>

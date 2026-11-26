@@ -71,11 +71,14 @@ interface TplTrack {
   clips: { name: string; bars: number; gen: string }[]
 }
 
+/** Names a starting point's icon. Each app draws it from its own icon set. */
+export type TemplateIcon = 'sunset' | 'night' | 'bolt' | 'coffee' | 'disc' | 'city' | 'terminal'
+
 export interface Template {
   id: string
   title: string
   blurb: string
-  emoji: string
+  icon: TemplateIcon
   bpm: number
   key: string
   swing?: number
@@ -89,7 +92,7 @@ const P = (k: Key, i: number) => progressionInKey(k, PROGRESSIONS[i].degrees)
 
 export const TEMPLATES: Template[] = [
   {
-    id: 'deep-house', title: 'Deep house', blurb: 'Warm chords, rolling bass, four-on-the-floor.', emoji: '🌇', bpm: 122, key: 'A minor', swing: 0.08,
+    id: 'deep-house', title: 'Deep house', blurb: 'Warm chords, rolling bass, four-on-the-floor.', icon: 'sunset', bpm: 122, key: 'A minor', swing: 0.08,
     tracks: (k, s) => [
       { name: 'Drums', kind: 'drums', preset: 'house', clips: [
         { name: 'Groove', bars: 2, gen: `drums(house, ${s})` },
@@ -116,7 +119,7 @@ export const TEMPLATES: Template[] = [
     arrangement: [['Intro', 4], ['Groove', 8], ['Main', 8], ['Breakdown', 4], ['Main', 8]],
   },
   {
-    id: 'ambient', title: 'Ambient soundscape', blurb: 'Slow pads, glassy bells, lots of space.', emoji: '🌌', bpm: 80, key: 'D major',
+    id: 'ambient', title: 'Ambient soundscape', blurb: 'Slow pads, glassy bells, lots of space.', icon: 'night', bpm: 80, key: 'D major',
     tracks: (k, s) => [
       { name: 'Pad', kind: 'synth', preset: 'warm-pad', smart: { space: 0.75, movement: 0.65 }, mix: { sendReverb: 0.45 }, clips: [
         { name: 'Drift', bars: 4, gen: `chords("${P(k, 4)}", pad)` },
@@ -140,7 +143,7 @@ export const TEMPLATES: Template[] = [
     arrangement: [['Dawn', 4], ['Bloom', 8], ['Glow', 8], ['Bloom', 4], ['Dawn', 4]],
   },
   {
-    id: 'dnb', title: 'Drum and bass groove', blurb: 'Fast breaks and a moving reese bass.', emoji: '⚡', bpm: 172, key: 'F minor',
+    id: 'dnb', title: 'Drum and bass groove', blurb: 'Fast breaks and a moving reese bass.', icon: 'bolt', bpm: 172, key: 'F minor',
     tracks: (k, s) => [
       { name: 'Drums', kind: 'drums', preset: 'studio', smart: { energy: 0.65 }, clips: [
         { name: 'Break', bars: 2, gen: `drums(dnb, ${s})` },
@@ -165,7 +168,7 @@ export const TEMPLATES: Template[] = [
     arrangement: [['Intro', 8], ['Roller', 8], ['Drop', 16], ['Intro', 4], ['Drop', 8]],
   },
   {
-    id: 'lofi', title: 'Lo-fi beat', blurb: 'Dusty drums, mellow keys, lazy swing.', emoji: '☕', bpm: 84, key: 'E minor', swing: 0.2,
+    id: 'lofi', title: 'Lo-fi beat', blurb: 'Dusty drums, mellow keys, lazy swing.', icon: 'coffee', bpm: 84, key: 'E minor', swing: 0.2,
     tracks: (k, s) => [
       { name: 'Drums', kind: 'drums', preset: 'boom-bap', smart: { warmth: 0.75 }, clips: [
         { name: 'Boom bap', bars: 2, gen: `drums(hiphop, ${s})` },
@@ -188,7 +191,7 @@ export const TEMPLATES: Template[] = [
     arrangement: [['Keys only', 4], ['Beat', 8], ['Full', 8], ['Beat', 4]],
   },
   {
-    id: 'techno', title: 'Hypnotic techno', blurb: 'Driving kick, acid line, rumble.', emoji: '🔩', bpm: 132, key: 'G minor',
+    id: 'techno', title: 'Hypnotic techno', blurb: 'Driving kick, acid line, rumble.', icon: 'disc', bpm: 132, key: 'G minor',
     tracks: (k, s) => [
       { name: 'Drums', kind: 'drums', preset: 'industrial', clips: [
         { name: 'Drive', bars: 2, gen: `drums(techno, ${s})` },
@@ -213,7 +216,7 @@ export const TEMPLATES: Template[] = [
     arrangement: [['Kick', 8], ['Groove', 8], ['Acid', 16], ['Peak', 16], ['Groove', 8]],
   },
   {
-    id: 'synthwave', title: 'Synthwave drive', blurb: 'Neon arps, big pads, gated drums.', emoji: '🌆', bpm: 104, key: 'C minor',
+    id: 'synthwave', title: 'Synthwave drive', blurb: 'Neon arps, big pads, gated drums.', icon: 'city', bpm: 104, key: 'C minor',
     tracks: (k, s) => [
       { name: 'Drums', kind: 'drums', preset: '808', smart: { space: 0.65 }, clips: [
         { name: 'Beat', bars: 2, gen: `drums(breakbeat, ${s})` },
@@ -236,7 +239,7 @@ export const TEMPLATES: Template[] = [
     arrangement: [['Intro', 4], ['Drive', 8], ['Chorus', 8], ['Drive', 4], ['Chorus', 8]],
   },
   {
-    id: 'algorithm', title: 'Write a musical algorithm', blurb: 'Start in code: generators, euclidean rhythms, live updates.', emoji: '⌨️', bpm: 118, key: 'C dorian', codeFirst: true,
+    id: 'algorithm', title: 'Write a musical algorithm', blurb: 'Start in code: generators, euclidean rhythms, live updates.', icon: 'terminal', bpm: 118, key: 'C dorian', codeFirst: true,
     tracks: (_k, s) => [
       { name: 'Perc', kind: 'drums', preset: 'punchy', clips: [
         { name: 'Euclid', bars: 1, gen: 'euclid(5, 16, kick)' },

@@ -26,7 +26,7 @@ An open-source music development environment: a studio, a live-coding language,<
 
 DAWs treat music as audio and MIDI to arrange. Live-coding tools treat it as text. Tactus treats it as **one programmable song** that you can work on three ways, switching at any time without stopping the music:
 
-| 🎛️ Discover | ⌨️ Develop | 🎤 Perform |
+| Discover | Develop | Perform |
 | --- | --- | --- |
 | Pick a genre and a mood and it starts playing. Shape it with **smart controls** like Warmth, Space and Energy. Ask the **inspiration engine** for a groove, bassline or melody. | Every track is a small text file. Change it and press **Run**: the change lands on the next bar while the music keeps playing. A mistake never stops the music. | Big scene buttons, **performance macros** (Build, Drop, Atmosphere, Chaos), **MIDI learn** for any knob, and a record button that captures your set to WAV. |
 
