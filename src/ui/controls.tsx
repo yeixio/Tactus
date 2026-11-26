@@ -1,5 +1,10 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useApp, useEngine } from '../state/store'
+import type { TemplateIcon } from '../model/project'
+import {
+  Building2, ChevronDown, ChevronUp, Circle, CodeXml, Coffee, Copy, Dices, Disc3, FilePlus2, ListMusic, MoonStar, Play, Plus,
+  Redo2, Square, SquareTerminal, Sunset, Undo2, WandSparkles, X, Zap, type LucideIcon,
+} from 'lucide-react'
 
 interface KnobProps {
   value: number
@@ -127,22 +132,25 @@ export function NumberDrag({ value, min, max, step = 1, onChange, suffix, width 
   )
 }
 
-export function Icon({ name, size = 16 }: { name: 'play' | 'stop' | 'song' | 'rec' | 'plus' | 'undo' | 'redo' | 'x' | 'dice' | 'code' | 'copy' | 'up' | 'down' | 'wand'; size?: number }) {
-  const s = { width: size, height: size, viewBox: '0 0 16 16', fill: 'currentColor' }
-  switch (name) {
-    case 'play': return <svg {...s}><path d="M4 2.5v11l9-5.5z" /></svg>
-    case 'stop': return <svg {...s}><rect x="3.5" y="3.5" width="9" height="9" rx="1" /></svg>
-    case 'song': return <svg {...s}><path d="M2 3h8v2H2zM2 7h12v2H2zM2 11h6v2H2z" /></svg>
-    case 'rec': return <svg {...s}><circle cx="8" cy="8" r="5" /></svg>
-    case 'plus': return <svg {...s}><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z" /></svg>
-    case 'undo': return <svg {...s} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M5 4L2 7l3 3M2.5 7H10a4 4 0 010 8H8" /></svg>
-    case 'redo': return <svg {...s} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 4l3 3-3 3M13.5 7H6a4 4 0 000 8h2" /></svg>
-    case 'x': return <svg {...s} fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4l8 8M12 4l-8 8" /></svg>
-    case 'dice': return <svg {...s}><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="currentColor" strokeWidth="1.6" /><circle cx="5.5" cy="5.5" r="1.2" /><circle cx="10.5" cy="10.5" r="1.2" /><circle cx="8" cy="8" r="1.2" /></svg>
-    case 'code': return <svg {...s} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M5 4L1.5 8 5 12M11 4l3.5 4-3.5 4" /></svg>
-    case 'copy': return <svg {...s} fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5" /><path d="M3 10.5V3.5A1 1 0 014 2.5h6.5" /></svg>
-    case 'up': return <svg {...s}><path d="M8 4l5 6H3z" /></svg>
-    case 'down': return <svg {...s}><path d="M8 12L3 6h10z" /></svg>
-    case 'wand': return <svg {...s}><path d="M2 12.5l8-8 1.5 1.5-8 8zM11 1l.7 1.6L13.3 3l-1.6.7L11 5.3l-.7-1.6L8.7 3l1.6-.4zM14 6l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z" /></svg>
-  }
+const ICONS = {
+  play: Play, stop: Square, song: ListMusic, rec: Circle, plus: Plus, undo: Undo2, redo: Redo2, x: X,
+  dice: Dices, code: CodeXml, copy: Copy, up: ChevronUp, down: ChevronDown, wand: WandSparkles,
+} satisfies Record<string, LucideIcon>
+/** Transport glyphs read better solid; everything else uses the outline style. */
+const SOLID = new Set(['play', 'stop', 'rec'])
+
+export type IconName = keyof typeof ICONS
+export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
+  const C = ICONS[name]
+  return <C size={size} strokeWidth={2} absoluteStrokeWidth={size < 16} fill={SOLID.has(name) ? 'currentColor' : 'none'} aria-hidden />
+}
+
+const STYLE_ICONS = {
+  sunset: Sunset, night: MoonStar, bolt: Zap, coffee: Coffee, disc: Disc3, city: Building2, terminal: SquareTerminal, blank: FilePlus2,
+} satisfies Record<TemplateIcon | 'blank', LucideIcon>
+
+/** The tile that marks a starting point on the Start screen. */
+export function StyleIcon({ name, size = 22 }: { name: TemplateIcon | 'blank'; size?: number }) {
+  const C = STYLE_ICONS[name]
+  return <span className={`style-icon si-${name}`} aria-hidden><C size={size} strokeWidth={1.75} /></span>
 }
